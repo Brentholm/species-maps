@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Species Map — Dry Run</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root {
+    --bee-gold: #FCD833;
+    --bee-black: #000000;
+    --bee-orange: #FA9727;
+    --bee-orange-dark: #D8562A;
+    --bee-sky: #8CBCE2;
+    --bg: #ffffff;
+    --text: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171a;
+      --text: #e8e8e8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171a;
+    --text: #e8e8e8;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  #wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+  }
+  #header {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #header .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bee-gold);
+    border: 2px solid var(--bee-black);
+    display: inline-block;
+  }
+  #map {
+    flex: 1;
+    min-height: 300px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+  }
+  #footer {
+    font-size: 11px;
+    color: #888;
+    margin-top: 6px;
+    text-align: right;
+  }
+  .leaflet-popup-content-wrapper {
+    border-radius: 6px;
+  }
+  .leaflet-popup-content b {
+    color: var(--bee-orange-dark);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="header"><span class="dot"></span>Dry run — fake occurrence points (Minnesota)</div>
+  <div id="map" role="img" aria-label="Map showing 5 fake occurrence points across Minnesota, used to test embedding this map on another site."></div>
+  <div id="footer">Test data only — not real occurrence records</div>
+</div>
+<p class="sr-only" id="map-summary">Map showing 5 fake occurrence points across Minnesota, used to test embedding this map on another site.</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+  // Fake GeoJSON, inlined for this dry run (final version fetches a real .geojson file)
+  var fakeData = {
+    "type": "FeatureCollection",
+    "features": [
+      { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-93.2650, 44.9778] },
+        "properties": { "date": "2023-07-12", "source": "Test", "note": "Minneapolis" } },
+      { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-92.1005, 46.7867] },
+        "properties": { "date": "2022-08-03", "source": "Test", "note": "Duluth" } },
+      { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-92.4802, 44.0121] },
+        "properties": { "date": "2021-06-21", "source": "Test", "note": "Rochester" } },
+      { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-94.1622, 45.5579] },
+        "properties": { "date": "2023-05-30", "source": "Test", "note": "St. Cloud" } },
+      { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-95.9967, 47.4735] },
+        "properties": { "date": "2020-07-04", "source": "Test", "note": "Bemidji" } }
+    ]
+  };
+
+  try {
+    var map = L.map('map', { scrollWheelZoom: false }).setView([46.0, -94.5], 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      subdomains: 'abc',
+      maxZoom: 19
+    }).addTo(map);
+
+    var goldIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#FCD833;border:2px solid #000;"></div>',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+
+    L.geoJSON(fakeData, {
+      pointToLayer: function (feature, latlng) {
+        return L.marker(latlng, { icon: goldIcon });
+      },
+      onEachFeature: function (feature, layer) {
+        var p = feature.properties;
+        layer.bindPopup('<b>' + p.note + '</b><br>' + p.date + '<br><span style="color:#888;font-size:11px;">' + p.source + '</span>');
+      }
+    }).addTo(map);
+  } catch (e) {
+    document.getElementById('map').innerHTML =
+      '<div style="padding:20px;color:#900;">Map failed to load: ' + e.message + '</div>';
+  }
+</script>
+</body>
+</html>
