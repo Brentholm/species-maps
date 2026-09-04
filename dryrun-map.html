@@ -96,21 +96,113 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
   // Fake GeoJSON, inlined for this dry run (final version fetches a real .geojson file)
+  // Deliberately sparse on some records to test the showMissingFields placeholder behavior
   var fakeData = {
     "type": "FeatureCollection",
     "features": [
       { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-93.2650, 44.9778] },
-        "properties": { "date": "2023-07-12", "source": "Test", "note": "Minneapolis" } },
+        "properties": {
+          "scientificName": "Bombus affinis",
+          "locality": "Minneapolis, Hennepin Co., MN",
+          "recordedBy": "J. Abel",
+          "eventDate": "2019-07-14",
+          "identifiedBy": "F. Hogland",
+          "lifeStage": "Adult",
+          "sex": "Female",
+          "occurrenceRemarks": "Foraging on Monarda fistulosa",
+          "sourceName": "iNaturalist",
+          "sourceUrl": "https://www.gbif.org/occurrence/1234567890"
+        } },
       { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-92.1005, 46.7867] },
-        "properties": { "date": "2022-08-03", "source": "Test", "note": "Duluth" } },
+        "properties": {
+          "scientificName": "Bombus affinis",
+          "eventDate": "2020-08-03",
+          "sourceName": "GBIF",
+          "sourceUrl": "https://www.gbif.org/occurrence/2234567890"
+        } },
       { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-92.4802, 44.0121] },
-        "properties": { "date": "2021-06-21", "source": "Test", "note": "Rochester" } },
+        "properties": {
+          "scientificName": "Bombus affinis",
+          "locality": "Rochester, Olmsted Co., MN",
+          "eventDate": "2021-06-21",
+          "sex": "Male",
+          "sourceName": "iNaturalist",
+          "sourceUrl": "https://www.gbif.org/occurrence/3234567890"
+        } },
       { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-94.1622, 45.5579] },
-        "properties": { "date": "2023-05-30", "source": "Test", "note": "St. Cloud" } },
+        "properties": {
+          "scientificName": "Bombus affinis",
+          "locality": "St. Cloud, Stearns Co., MN",
+          "recordedBy": "M. Ito",
+          "eventDate": "2023-05-30",
+          "identifiedBy": "M. Ito",
+          "lifeStage": "Adult",
+          "sourceName": "Bumble Bee Watch",
+          "sourceUrl": "https://www.gbif.org/occurrence/4234567890"
+        } },
       { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-95.9967, 47.4735] },
-        "properties": { "date": "2020-07-04", "source": "Test", "note": "Bemidji" } }
+        "properties": {
+          "scientificName": "Bombus affinis",
+          "eventDate": "2020-07-04",
+          "occurrenceRemarks": "Nest site nearby",
+          "sourceName": "iNaturalist",
+          "sourceUrl": "https://www.gbif.org/occurrence/5234567890"
+        } }
     ]
   };
+
+  // Controls whether absent fields render as "Missing" (true, default) or are skipped (false)
+  var showMissingFields = true;
+
+  function buildPopupHtml(props) {
+    var MISSING = 'Missing';
+    function val(key) {
+      var v = props[key];
+      return (v === undefined || v === null || v === '') ? null : v;
+    }
+    var rows = [];
+
+    // Species name — always present, italicized, not a labeled row
+    var nameHtml = '<div style="font-style:italic;font-weight:600;margin-bottom:4px;">' +
+      (val('scientificName') || MISSING) + '</div>';
+
+    // Coordinates — derived from geometry, always present
+    var coordRow = '<b>Coordinates:</b> ' + (val('coordinates') || MISSING);
+    rows.push(coordRow);
+
+    var fieldDefs = [
+      { label: 'Locality', key: 'locality' },
+      { label: 'Recorded by', key: 'recordedBy' },
+      { label: 'Date found', key: 'eventDate' },
+      { label: 'Determined by', key: 'identifiedBy' },
+      { label: 'Life Stage', key: 'lifeStage' },
+      { label: 'Sex', key: 'sex' },
+      { label: 'Notes', key: 'occurrenceRemarks' }
+    ];
+
+    fieldDefs.forEach(function (f) {
+      var v = val(f.key);
+      if (v === null) {
+        if (showMissingFields) {
+          rows.push('<b>' + f.label + ':</b> <span style="color:#999;">' + MISSING + '</span>');
+        }
+        // if showMissingFields is false, skip the row entirely
+      } else {
+        rows.push('<b>' + f.label + ':</b> ' + v);
+      }
+    });
+
+    // Source — always a hyperlink; label from sourceName, fallback "GBIF"
+    var sourceUrl = val('sourceUrl');
+    var sourceName = val('sourceName') || 'GBIF';
+    var sourceHtml = sourceUrl
+      ? '<b>Source:</b> <a href="' + sourceUrl + '" target="_blank" rel="noopener" style="color:#8CBCE2;">' + sourceName + '</a>'
+      : (showMissingFields ? '<b>Source:</b> <span style="color:#999;">' + MISSING + '</span>' : '');
+    if (sourceHtml) rows.push(sourceHtml);
+
+    return nameHtml +
+      '<div style="font-size:12.5px;line-height:1.6;">' + rows.join('<br>') + '</div>';
+  }
 
   try {
     var map = L.map('map', { scrollWheelZoom: false }).setView([46.0, -94.5], 6);
@@ -133,8 +225,10 @@
         return L.marker(latlng, { icon: goldIcon });
       },
       onEachFeature: function (feature, layer) {
-        var p = feature.properties;
-        layer.bindPopup('<b>' + p.note + '</b><br>' + p.date + '<br><span style="color:#888;font-size:11px;">' + p.source + '</span>');
+        var props = Object.assign({}, feature.properties, {
+          coordinates: feature.geometry.coordinates[1].toFixed(4) + ', ' + feature.geometry.coordinates[0].toFixed(4)
+        });
+        layer.bindPopup(buildPopupHtml(props), { maxWidth: 260 });
       }
     }).addTo(map);
   } catch (e) {
